@@ -1,0 +1,531 @@
+<dashboard>
+  <search id="base_all">
+    <query>
+      index=ssl_cert sourcetype="cert" earliest=@d
+| eval host=host
+| eval port=port
+| eval Cert_Type=Cert_Type
+| eval environment_type=environment_type
+| eval description=description
+    </query>
+  </search>
+  <search id="base_error">
+    <query>
+      index=ssl_cert sourcetype="cert" status=error earliest=@d
+| eval host=host
+| eval port=port
+| eval Cert_Type=Cert_Type
+| eval environment_type=environment_type
+| eval description=description
+    </query>
+  </search>
+  <search id="base_expired">
+    <query> index=ssl_cert sourcetype="cert" status=success "expired=true" earliest=@d
+| eval expiry_epoch=strptime(validto,"%Y-%m-%dT%H:%M:%S") 
+| eval expiry_human=strftime(expiry_epoch, "%Y-%m-%d") 
+| eval valid_start_epoch=strptime(validfrom,"%Y-%m-%dT%H:%M:%S") 
+| eval valid_start_human=strftime(valid_start_epoch, "%Y-%m-%d") 
+| eval host=host
+| eval port=port
+| eval Cert_Type=Cert_Type
+| eval environment_type=environment_type
+| eval description=description
+| rename expiry_human as "Valid To" 
+| rename valid_start_human as "Valid From"
+</query>
+  </search>
+  <search id="base_expiry_90">
+    <query>index=ssl_cert sourcetype="cert" earliest=@d status=success "expired=false"
+| eval expiry_epoch=strptime(validto,"%Y-%m-%dT%H:%M:%S") 
+| eval expiry_human=strftime(expiry_epoch, "%Y-%m-%d") 
+| eval valid_start_epoch=strptime(validfrom,"%Y-%m-%dT%H:%M:%S")
+| eval valid_start_human=strftime(valid_start_epoch, "%Y-%m-%d")
+| eval expiring_in_90=`withinDays((expiry_epoch),+,90)` 
+| eval expireswithin_days = `dateWithinDays(expiry_epoch,90,60,30,10,1)` 
+| search expiring_in_90="True" AND expireswithin_days=* 
+| eval host=host
+| eval port=port
+| eval Cert_Type=Cert_Type
+| eval environment_type=environment_type
+| eval description=description
+| rename expiry_human as "Valid To" 
+| rename valid_start_human as "Valid From" 
+</query>
+  </search>
+  <label>Cert Status-Main</label>
+  <description>Data from app: wr_ssl_checker</description>
+  <row>
+    <panel id="totalSingle">
+      <title>Total Servers Checked</title>
+      <single>
+        <search base="base_all">
+          <query>
+          |stats count
+          </query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">all</option>
+        <option name="rangeColors">["0x53a051","0x6db7c6"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Total Certs Checked</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_allhosts">$click.value$</set>
+        </drilldown>
+      </single>
+    </panel>
+    <panel id="errorSingle">
+      <title>Certs that could not be Checked</title>
+      <single>
+        <search base="base_error">
+          <query>
+| stats count</query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_errorHosts">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0x999"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs could not be checked</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel id="expiredSingle">
+      <title>Currently Expired Certs</title>
+      <single>
+        <search base="base_expired">
+          <query>
+          |stats count
+          </query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_expiredHosts">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs Expired</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiring01Single">
+      <title>Expiring &lt; 1</title>
+      <single>
+        <search base="base_expiry_90">
+          <query>
+          |search expireswithin_days=1
+          |stats count
+          </query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_expiring01">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs Expiring</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel id="expiring10Single">
+      <title>Expiring &lt; 10</title>
+      <single>
+        <search base="base_expiry_90">
+          <query>
+          |search expireswithin_days=10
+          |stats count
+          </query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_expiring10">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xf8be34","0xdc4e41"]</option>
+        <option name="rangeValues">[0,10]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs Expiring</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel id="expiring30Single">
+      <title>Expiring &lt; 30</title>
+      <single>
+        <search base="base_expiry_90">
+          <query>
+          |search expireswithin_days=30
+          |stats count
+          </query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_expiring30">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xf8be34","0xdc4e41"]</option>
+        <option name="rangeValues">[30,90]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs Expiring</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel id="expiring60Single">
+      <title>Expiring &lt; 60</title>
+      <single>
+        <search base="base_expiry_90">
+          <query>
+          |search expireswithin_days=60
+          |stats count
+          </query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_expiring60">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xf8be34","0xdc4e41"]</option>
+        <option name="rangeValues">[0,80]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs Expiring</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel id="expiring90Single">
+      <title>Expiring &lt; 90</title>
+      <single>
+        <search base="base_expiry_90">
+          <query>
+          |search expireswithin_days=90
+          |stats count
+          </query>
+        </search>
+        <drilldown>
+          <unset token="tok_errorHosts"></unset>
+          <unset token="tok_expiredHosts"></unset>
+          <unset token="tok_expiring01"></unset>
+          <unset token="tok_expiring10"></unset>
+          <unset token="tok_expiring30"></unset>
+          <unset token="tok_expiring60"></unset>
+          <unset token="tok_expiring90"></unset>
+          <unset token="tok_allhosts"></unset>
+          <set token="tok_expiring90">$click.value$</set>
+        </drilldown>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.size">large</option>
+        <option name="trellis.splitBy">_aggregation</option>
+        <option name="underLabel">Certs Expiring</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel id="allHosts" depends="$tok_allhosts$">
+      <title>All Hosts Checked</title>
+      <table>
+        <search base="base_all">
+          <query>
+           | table host port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="errorHosts" depends="$tok_errorHosts$">
+      <title>Hosts that could not be Checked</title>
+      <table>
+        <search base="base_error">
+          <query>
+           |table host status Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiredHosts" depends="$tok_expiredHosts$">
+      <title>Hosts with Expired Certs</title>
+      <table>
+        <search base="base_expired">
+          <query>
+           |table host "Valid From" "Valid To" port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiring01Hosts" depends="$tok_expiring01$">
+      <title>Hosts with Certs Expiring within days: 1</title>
+      <table>
+        <search base="base_expiry_90">
+          <query>
+           |search expireswithin_days=1
+           |table host "Valid From" "Valid To" port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiring10Hosts" depends="$tok_expiring10$">
+      <title>Hosts with Certs Expiring within days: 10</title>
+      <table>
+        <search base="base_expiry_90">
+          <query>
+           |search expireswithin_days=10
+           |table host "Valid From" "Valid To" port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiring30Hosts" depends="$tok_expiring30$">
+      <title>Hosts with Certs Expiring within days: 30</title>
+      <table>
+        <search base="base_expiry_90">
+          <query>
+           |search expireswithin_days=30
+           |table host "Valid From" "Valid To" port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiring60Hosts" depends="$tok_expiring60$">
+      <title>Hosts with Certs Expiring within days: 60</title>
+      <table>
+        <search base="base_expiry_90">
+          <query>
+           |search expireswithin_days=60
+           |table host "Valid From" "Valid To" port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="expiring90Hosts" depends="$tok_expiring90$">
+      <title>Hosts with Certs Expiring within days: 90</title>
+      <table>
+        <search base="base_expiry_90">
+          <query>
+           |search expireswithin_days=90
+           |table host "Valid From" "Valid To" port Cert_Type environment_type description
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$alwaysHideCSS$">
+      <html>
+         <style>
+              .dashboard-panel h2.panel-title {
+              font-weight: bold !important;
+              font-size: 150% !important;
+              text-align: center!important;
+            }
+           #allHosts .table th, .table td {
+                    text-align: center!important;}
+           #allHosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #errorHosts .table th, .table td {
+                    text-align: center!important;}
+           #errorHosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #expiredHosts .table th, .table td {
+                    text-align: center!important;}
+           #expiredHosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #expiring90Hosts .table th, .table td {
+                    text-align: center!important;}
+           #expiring90Hosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #expiring60Hosts .table th, .table td {
+                    text-align: center!important;}
+           #expiring60Hosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #expiring30Hosts .table th, .table td {
+                    text-align: center!important;}
+           #expiring30Hosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #expiring10Hosts .table th, .table td {
+                    text-align: center!important;}
+           #expiring10Hosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+           #expiring01Hosts .table th, .table td {
+                    text-align: center!important;}
+           #expiring01Hosts th[data-sort-key=host]{
+             width:25% !important;
+             text-align: center!important;
+           }
+         </style>
+       </html>
+    </panel>
+  </row>
+</dashboard>

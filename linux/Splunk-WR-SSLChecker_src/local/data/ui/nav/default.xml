@@ -1,0 +1,7 @@
+<nav search_view="cert_checker_main" color="#65A637">
+  <view name="cert_checker_main" default="true" />
+  <view name="datasets" />
+  <view name="reports" />
+  <view name="alerts" />
+  <view name="dashboards" />
+</nav>
